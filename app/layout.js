@@ -1,3 +1,5 @@
+import Footer from "./_components/Footer";
+import NavBar from "./_components/NavBar";
 import "./globals.css";
 
 
@@ -12,7 +14,9 @@ export default function RootLayout({ children }) {
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" precedence="default" />
 
       <body className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen">
-        {children}
+        <NavBar/>
+          {children}
+        <Footer/>
       </body>
     </html>
   );
