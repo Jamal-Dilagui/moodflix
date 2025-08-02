@@ -2,10 +2,15 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useSession, signOut } from "next-auth/react";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFilm, faSun, faMoon, faBars, faTimes, faHome, faHeart, faUser } from '@fortawesome/free-solid-svg-icons';
 
 const NavBar = () => {
   const [darkMode, setDarkMode] = useState(false);
-
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { data: session, status } = useSession();
+ 
   // Initialize dark mode from localStorage or system preference
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -28,44 +33,185 @@ const NavBar = () => {
     document.documentElement.classList.toggle('dark', newMode);
   };
 
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: '/' });
+  };
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
+
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+  };
+
   return (
     <nav className="top-0 w-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-50 border-b border-gray-200 dark:border-gray-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
+          {/* Logo */}
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
               <Link href="/">
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
+                <FontAwesomeIcon icon={faFilm} className="w-4 h-4 text-white" />
               </Link>
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
               MoodFlix
             </span>
           </div>
+
+          {/* Desktop Menu */}
+          <div className="hidden md:flex items-center space-x-8">
+            <Link 
+              href="/" 
+              className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+            >
+              <FontAwesomeIcon icon={faHome} className="w-4 h-4" />
+              <span>Home</span>
+            </Link>
+            <Link 
+              href="/recommend" 
+              className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+            >
+              <FontAwesomeIcon icon={faHeart} className="w-4 h-4" />
+              <span>Recommendations</span>
+            </Link>
+            {session && (
+              <>
+                <Link 
+                  href="/watchlist" 
+                  className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                >
+                  <FontAwesomeIcon icon={faHeart} className="w-4 h-4" />
+                  <span>Watchlist</span>
+                </Link>
+                <Link 
+                  href="/profile" 
+                  className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                >
+                  <FontAwesomeIcon icon={faUser} className="w-4 h-4" />
+                  <span>Profile</span>
+                </Link>
+              </>
+            )}
+          </div>
+
+          {/* Right side - Dark mode toggle and auth */}
           <div className="flex items-center space-x-4">
             <button
               onClick={toggleDarkMode}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               aria-label="Toggle dark mode"
             >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                {darkMode ? (
-                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
-                ) : (
-                  <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"/>
-                )}
-              </svg>
+              <FontAwesomeIcon 
+                icon={darkMode ? faSun : faMoon} 
+                className="w-5 h-5" 
+              />
             </button>
-            <Link
-              href="/login"
-              className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+            
+            {session ? (
+              <div className="hidden md:flex items-center space-x-3">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Welcome, {session.user.firstName} {session.user.lastName}
+                </span>
+                <button
+                  onClick={handleSignOut}
+                  className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="hidden md:block text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+              >
+                Login
+              </Link>
+            )}
+
+            {/* Mobile menu button */}
+            <button
+              onClick={toggleMenu}
+              className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              aria-label="Toggle menu"
             >
-              Login
-            </Link>
+              <FontAwesomeIcon 
+                icon={isMenuOpen ? faTimes : faBars} 
+                className="w-5 h-5" 
+              />
+            </button>
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        {isMenuOpen && (
+          <div className="md:hidden">
+            <div className="px-2 pt-2 pb-3 space-y-1 bg-white dark:bg-gray-800 rounded-lg mt-2 shadow-lg">
+              <Link 
+                href="/" 
+                className="flex items-center space-x-3 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                onClick={closeMenu}
+              >
+                <FontAwesomeIcon icon={faHome} className="w-4 h-4" />
+                <span>Home</span>
+              </Link>
+              <Link 
+                href="/recommend" 
+                className="flex items-center space-x-3 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                onClick={closeMenu}
+              >
+                <FontAwesomeIcon icon={faHeart} className="w-4 h-4" />
+                <span>Recommendations</span>
+              </Link>
+              {session && (
+                <>
+                  <Link 
+                    href="/watchlist" 
+                    className="flex items-center space-x-3 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                    onClick={closeMenu}
+                  >
+                    <FontAwesomeIcon icon={faHeart} className="w-4 h-4" />
+                    <span>Watchlist</span>
+                  </Link>
+                  <Link 
+                    href="/profile" 
+                    className="flex items-center space-x-3 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                    onClick={closeMenu}
+                  >
+                    <FontAwesomeIcon icon={faUser} className="w-4 h-4" />
+                    <span>Profile</span>
+                  </Link>
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+                    <div className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+                      Welcome, {session.user.firstName} {session.user.lastName}
+                    </div>
+                    <button
+                      onClick={() => {
+                        handleSignOut();
+                        closeMenu();
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                </>
+              )}
+              {!session && (
+                <Link
+                  href="/login"
+                  className="flex items-center space-x-3 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                  onClick={closeMenu}
+                >
+                  <FontAwesomeIcon icon={faUser} className="w-4 h-4" />
+                  <span>Login</span>
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </nav>
   );

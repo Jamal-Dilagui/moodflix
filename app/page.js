@@ -1,13 +1,13 @@
 import Hero from "./_components/Hero";
-import RecommendationForm from "./_components/RecommandationForm";
+import HowItWorks from "./_components/HowItWorks";
 
 export default function Home() {
   return (
     <div>
      
-      <main className="pt-16">
+      <main>
         <Hero/>
-        <RecommendationForm/>
+        <HowItWorks/>
       </main>
 
     </div>
