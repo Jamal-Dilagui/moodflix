@@ -219,8 +219,6 @@ movieSchema.index({ genres: 1 });
 movieSchema.index({ releaseDate: -1 });
 movieSchema.index({ averageRating: -1 });
 movieSchema.index({ popularity: -1 });
-movieSchema.index({ tmdbId: 1 });
-movieSchema.index({ imdbId: 1 });
 movieSchema.index({ moodTags: 1 });
 movieSchema.index({ situationTags: 1 });
 movieSchema.index({ timeTags: 1 });

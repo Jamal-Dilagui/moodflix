@@ -18,6 +18,7 @@ const RecommendationForm = () => {
   const [selectedMood, setSelectedMood] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [selectedSituation, setSelectedSituation] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSelection = (type, value) => {
     switch (type) {
@@ -33,15 +34,39 @@ const RecommendationForm = () => {
     }
   };
 
-  const handleGetRecommendations = () => {
+  const handleGetRecommendations = async () => {
     if (selectedMood && selectedTime && selectedSituation) {
-      // Handle recommendation logic here
-      console.log({
-        mood: selectedMood,
-        time: selectedTime,
-        situation: selectedSituation
-      });
-      // You would typically navigate to results page here
+      setIsLoading(true);
+      
+      try {
+        const response = await fetch('/api/deepseek', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            mood: selectedMood,
+            time: selectedTime,
+            situation: selectedSituation
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          console.log('AI Recommendations:', data);
+          // You can navigate to results page or show recommendations here
+          alert(`Found ${data.data.total_results} recommendations for you!`);
+        } else {
+          console.error('API Error:', data);
+          alert('Failed to get recommendations. Please try again.');
+        }
+      } catch (error) {
+        console.error('Network Error:', error);
+        alert('Network error. Please check your connection.');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -139,10 +164,17 @@ const RecommendationForm = () => {
         <div className="text-center animate-slide-up" style={{ animationDelay: '1.2s' }}>
           <button
             onClick={handleGetRecommendations}
-            disabled={!selectedMood || !selectedTime || !selectedSituation}
+            disabled={!selectedMood || !selectedTime || !selectedSituation || isLoading}
             className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
-            Get Recommendations
+            {isLoading ? (
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <span>Getting AI Recommendations...</span>
+              </div>
+            ) : (
+              'Get AI Recommendations'
+            )}
           </button>
         </div>
       </div>
