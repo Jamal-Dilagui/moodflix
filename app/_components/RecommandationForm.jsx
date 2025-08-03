@@ -1,6 +1,7 @@
 "use client"; // Required for client-side interactivity
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faSmile, 
@@ -15,6 +16,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 
 const RecommendationForm = () => {
+  const router = useRouter();
   const [selectedMood, setSelectedMood] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [selectedSituation, setSelectedSituation] = useState(null);
@@ -54,9 +56,21 @@ const RecommendationForm = () => {
         const data = await response.json();
 
         if (response.ok) {
-          console.log('AI Recommendations:', data);
-          // You can navigate to results page or show recommendations here
-          alert(`Found ${data.data.total_results} recommendations for you!`);
+          console.log('AI Recommendations with TMDb data:', data);
+          
+          // Store preferences in localStorage for the results page
+          localStorage.setItem('userMood', selectedMood);
+          localStorage.setItem('userTime', selectedTime);
+          localStorage.setItem('userSituation', selectedSituation);
+          
+          // Navigate to results page with URL parameters
+          const params = new URLSearchParams({
+            mood: selectedMood,
+            time: selectedTime,
+            situation: selectedSituation
+          });
+          
+          router.push(`/moviesResults?${params.toString()}`);
         } else {
           console.error('API Error:', data);
           alert('Failed to get recommendations. Please try again.');

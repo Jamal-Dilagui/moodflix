@@ -9,15 +9,13 @@ import {
   faShare,
   faSpinner
 } from '@fortawesome/free-solid-svg-icons';
-import { useTmdb, useMovieState } from '@/app/hooks/useTmdb';
-
 const ResultsPage = () => {
   const [bookmarkedMovies, setBookmarkedMovies] = useState(new Set());
   const [imageErrors, setImageErrors] = useState(new Set());
   const [userPreferences, setUserPreferences] = useState(null);
-
-  const { getRecommendations, loading, error } = useTmdb();
-  const { movies, updateMovies } = useMovieState();
+  const [movies, setMovies] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   // Get user preferences from URL params or localStorage
   useEffect(() => {
@@ -33,11 +31,36 @@ const ResultsPage = () => {
   }, []);
 
   const fetchRecommendations = async (mood, timeAvailable, situation) => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      const results = await getRecommendations(mood, timeAvailable, situation);
-      updateMovies(results.results || [], results.page, results.totalPages, results.totalResults);
+      const response = await fetch('/api/deepseek', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          mood: mood,
+          time: timeAvailable,
+          situation: situation
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log('AI Recommendations with TMDb data:', data);
+        setMovies(data.data.recommendations || []);
+      } else {
+        console.error('API Error:', data);
+        setError(data.message || 'Failed to get recommendations');
+      }
     } catch (err) {
       console.error('Failed to fetch recommendations:', err);
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -101,36 +124,38 @@ const ResultsPage = () => {
               <p className="text-lg text-gray-600 dark:text-gray-300">No movies found for your preferences</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {movies.map((movie, index) => (
-                              <div 
-                  key={movie.id || movie.title}
+                <div 
+                  key={movie.tmdb_id || movie.title}
                   className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   <div className="relative">
                     <img 
-                      src={imageErrors.has(movie.id) ? '/images/placeholder.svg' : movie.poster} 
+                      src={imageErrors.has(movie.tmdb_id) ? '/images/placeholder.svg' : 
+                           movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : 
+                           '/images/placeholder.svg'} 
                       alt={movie.title} 
                       className="w-full h-64 object-cover"
                       onError={(e) => {
-                        setImageErrors(prev => new Set([...prev, movie.id]));
+                        setImageErrors(prev => new Set([...prev, movie.tmdb_id]));
                         e.target.src = '/images/placeholder.svg';
                       }}
                     />
                     <div className="absolute top-4 right-4">
                       <button 
                         className={`p-2 rounded-full transition-colors ${
-                          bookmarkedMovies.has(movie.id)
+                          bookmarkedMovies.has(movie.tmdb_id)
                             ? 'text-yellow-400 bg-gray-800/90 hover:bg-gray-700/90'
                             : 'text-white/80 bg-gray-800/80 hover:bg-gray-700/80'
                         }`}
                         onClick={() => {
                           setBookmarkedMovies(prev => {
                             const newSet = new Set(prev);
-                            if (newSet.has(movie.id)) {
-                              newSet.delete(movie.id);
+                            if (newSet.has(movie.tmdb_id)) {
+                              newSet.delete(movie.tmdb_id);
                             } else {
-                              newSet.add(movie.id);
+                              newSet.add(movie.tmdb_id);
                             }
                             return newSet;
                           });
@@ -139,47 +164,80 @@ const ResultsPage = () => {
                         <FontAwesomeIcon icon={faBookmark} />
                       </button>
                     </div>
+                    {/* AI Confidence Badge */}
+                    {movie.search_confidence && (
+                      <div className="absolute top-4 left-4">
+                        <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full">
+                          AI: {Math.round(movie.search_confidence * 100)}%
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{movie.title}</h3>
                         <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                          {movie.year && <span>{movie.year}</span>}
-                          {movie.year && movie.duration && <span>•</span>}
-                          {movie.duration && <span>{movie.duration}</span>}
-                          {movie.duration && movie.rating && <span>•</span>}
-                          {movie.rating && <span>⭐ {movie.rating.toFixed(1)}</span>}
+                          {movie.release_date && (
+                            <span>{new Date(movie.release_date).getFullYear()}</span>
+                          )}
+                          {movie.release_date && movie.runtime && <span>•</span>}
+                          {movie.runtime && <span>{movie.runtime} min</span>}
+                          {movie.runtime && movie.vote_average && <span>•</span>}
+                          {movie.vote_average && <span>⭐ {movie.vote_average.toFixed(1)}</span>}
+                          {movie.vote_average && movie.genres && <span>•</span>}
+                          {movie.genres && movie.genres.length > 0 && (
+                            <span className="text-purple-600 dark:text-purple-400">
+                              {movie.genres[0]}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <p className="text-gray-700 dark:text-gray-300 mb-4">{movie.overview || movie.description}</p>
-                    <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 mb-4">
-                      <p className="text-sm text-purple-800 dark:text-purple-200">
-                        <strong>Why it fits your mood:</strong> {generateMoodReason(movie, userPreferences?.mood)}
-                      </p>
-                    </div>
-                                      <div className="flex space-x-3">
+                    <p className="text-gray-700 dark:text-gray-300 mb-4">
+                      {movie.overview || movie.description || "No description available"}
+                    </p>
+                    
+                    {/* AI Recommendation Reason */}
+                    {movie.ai_recommendation && (
+                      <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 mb-4">
+                        <p className="text-sm text-purple-800 dark:text-purple-200">
+                          <strong>🤖 AI Recommendation:</strong> {movie.ai_recommendation.reason}
+                        </p>
+                        {movie.ai_recommendation.mood_match && (
+                          <p className="text-xs text-purple-600 dark:text-purple-300 mt-1">
+                            Mood Match: {movie.ai_recommendation.mood_match}
+                          </p>
+                        )}
+                        {movie.ai_recommendation.time_suitable && (
+                          <p className="text-xs text-purple-600 dark:text-purple-300">
+                            Time Suitable: {movie.ai_recommendation.time_suitable}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    
+                    <div className="flex space-x-3">
                       <button 
                         className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-300 ${
-                          bookmarkedMovies.has(movie.id)
+                          bookmarkedMovies.has(movie.tmdb_id)
                             ? 'bg-green-600 hover:bg-green-700 text-white'
                             : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
                         }`}
                         onClick={() => {
                           setBookmarkedMovies(prev => {
                             const newSet = new Set(prev);
-                            if (newSet.has(movie.id)) {
-                              newSet.delete(movie.id);
+                            if (newSet.has(movie.tmdb_id)) {
+                              newSet.delete(movie.tmdb_id);
                             } else {
-                              newSet.add(movie.id);
+                              newSet.add(movie.tmdb_id);
                             }
                             return newSet;
                           });
                         }}
                       >
                         <FontAwesomeIcon icon={faBookmark} className="mr-2" />
-                        {bookmarkedMovies.has(movie.id) ? 'Saved!' : 'Save to Watchlist'}
+                        {bookmarkedMovies.has(movie.tmdb_id) ? 'Saved!' : 'Save to Watchlist'}
                       </button>
                       <button 
                         className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
@@ -192,7 +250,7 @@ const ResultsPage = () => {
                             });
                           } else {
                             // Fallback: copy to clipboard
-                            navigator.clipboard.writeText(`${movie.title} - ${movie.overview || movie.description}`);
+                             navigator.clipboard.writeText(`${movie.title} - ${movie.overview || movie.description}`);
                             alert('Movie info copied to clipboard!');
                           }
                         }}
@@ -201,7 +259,7 @@ const ResultsPage = () => {
                         Share
                       </button>
                     </div>
-                                  </div>
+                  </div>
                 </div>
               ))}
             </div>

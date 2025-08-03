@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
+// Import TMDb functions
+import { searchMovies, getMovieDetails, transformMovieData } from '@/app/lib/tmdb.js';
+
 // Initialize OpenAI client with OpenRouter configuration
 const openai = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -48,6 +51,129 @@ Focus on movies that:
 5. Have positive reviews and ratings
 
 Return only the JSON response, no additional text.`;
+}
+
+/**
+ * Search TMDb for movies based on AI recommendations
+ * @param {Array} aiRecommendations - AI movie recommendations
+ * @returns {Promise<Array>} Array of movies with TMDb data
+ */
+async function searchMoviesFromRecommendations(aiRecommendations) {
+  const moviesWithTMDbData = [];
+
+  for (const recommendation of aiRecommendations) {
+    try {
+      // Search TMDb for the movie title
+      const searchResults = await searchMovies(recommendation.title);
+      
+      if (searchResults.results && searchResults.results.length > 0) {
+        // Get the best match (first result)
+        const bestMatch = searchResults.results[0];
+        
+        // Get detailed movie information
+        const movieDetails = await getMovieDetails(bestMatch.id);
+        
+        // Combine AI recommendation with TMDb data
+        const movieWithData = {
+          ...recommendation,
+          tmdb_id: bestMatch.id,
+          poster_path: bestMatch.poster_path,
+          backdrop_path: bestMatch.backdrop_path,
+          release_date: bestMatch.release_date,
+          vote_average: bestMatch.vote_average,
+          vote_count: bestMatch.vote_count,
+          overview: bestMatch.overview,
+          runtime: movieDetails.runtime,
+          genres: movieDetails.genres?.map(g => g.name) || [],
+          // Keep AI recommendation data
+          ai_recommendation: {
+            reason: recommendation.reason,
+            mood_match: recommendation.mood_match,
+            time_suitable: recommendation.time_suitable
+          },
+          // Add search confidence (how well the title matched)
+          search_confidence: calculateSearchConfidence(recommendation.title, bestMatch.title)
+        };
+        
+        moviesWithTMDbData.push(movieWithData);
+      } else {
+        // If no TMDb match found, keep the AI recommendation with placeholder data
+        moviesWithTMDbData.push({
+          ...recommendation,
+          tmdb_id: null,
+          poster_path: null,
+          backdrop_path: null,
+          release_date: null,
+          vote_average: null,
+          vote_count: null,
+          overview: null,
+          runtime: null,
+          genres: [recommendation.genre],
+          ai_recommendation: {
+            reason: recommendation.reason,
+            mood_match: recommendation.mood_match,
+            time_suitable: recommendation.time_suitable
+          },
+          search_confidence: 0
+        });
+      }
+    } catch (error) {
+      console.error(`Error searching for movie "${recommendation.title}":`, error);
+      
+      // Add fallback data
+      moviesWithTMDbData.push({
+        ...recommendation,
+        tmdb_id: null,
+        poster_path: null,
+        backdrop_path: null,
+        release_date: null,
+        vote_average: null,
+        vote_count: null,
+        overview: null,
+        runtime: null,
+        genres: [recommendation.genre],
+        ai_recommendation: {
+          reason: recommendation.reason,
+          mood_match: recommendation.mood_match,
+          time_suitable: recommendation.time_suitable
+        },
+        search_confidence: 0,
+        error: 'Failed to fetch TMDb data'
+      });
+    }
+  }
+
+  return moviesWithTMDbData;
+}
+
+/**
+ * Calculate search confidence based on title similarity
+ * @param {string} aiTitle - AI suggested title
+ * @param {string} tmdbTitle - TMDb title
+ * @returns {number} Confidence score (0-1)
+ */
+function calculateSearchConfidence(aiTitle, tmdbTitle) {
+  if (!aiTitle || !tmdbTitle) return 0;
+  
+  const aiLower = aiTitle.toLowerCase();
+  const tmdbLower = tmdbTitle.toLowerCase();
+  
+  // Exact match
+  if (aiLower === tmdbLower) return 1;
+  
+  // Contains match
+  if (aiLower.includes(tmdbLower) || tmdbLower.includes(aiLower)) return 0.9;
+  
+  // Word overlap
+  const aiWords = aiLower.split(/\s+/);
+  const tmdbWords = tmdbLower.split(/\s+/);
+  const commonWords = aiWords.filter(word => tmdbWords.includes(word));
+  
+  if (commonWords.length > 0) {
+    return Math.min(0.8, commonWords.length / Math.max(aiWords.length, tmdbWords.length));
+  }
+  
+  return 0.3; // Low confidence for partial matches
 }
 
 /**
@@ -151,14 +277,20 @@ export async function POST(request) {
       );
     }
 
-    // Return successful response
+    // Search TMDb for real movie data based on AI recommendations
+    console.log('Searching TMDb for movie data...');
+    const moviesWithTMDbData = await searchMoviesFromRecommendations(recommendations.recommendations);
+    
+    // Return successful response with TMDb data
     return NextResponse.json({
       success: true,
       data: {
-        recommendations: recommendations.recommendations,
+        recommendations: moviesWithTMDbData,
         overall_analysis: recommendations.overall_analysis,
         user_preferences: { mood, time, situation },
-        total_results: recommendations.recommendations.length
+        total_results: moviesWithTMDbData.length,
+        ai_source: 'deepseek-via-openrouter',
+        tmdb_integration: true
       },
       source: 'deepseek-via-openrouter'
     });
