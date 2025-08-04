@@ -11,7 +11,36 @@ const NavBar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [watchlistCount, setWatchlistCount] = useState(0);
   const { data: session, status } = useSession();
+
+  // Get watchlist count
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const watchlist = localStorage.getItem('moodflix_watchlist');
+        if (watchlist) {
+          const items = JSON.parse(watchlist);
+          setWatchlistCount(items.length);
+        }
+      } catch (error) {
+        console.error('Error reading watchlist count:', error);
+      }
+    }
+  }, []);
   
+  // Initialize dark mode from localStorage or system preference
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedMode = localStorage.getItem('darkMode');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      if (savedMode !== null) {
+        setDarkMode(JSON.parse(savedMode));
+      } else if (prefersDark) {
+        setDarkMode(true);
+      }
+    }
+  }, []);
+
   // Show loading state while session is loading
   if (status === 'loading') {
     return (
@@ -39,35 +68,6 @@ const NavBar = () => {
       </nav>
     );
   }
-
-  // Get watchlist count
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const watchlist = localStorage.getItem('moodflix_watchlist');
-        if (watchlist) {
-          const items = JSON.parse(watchlist);
-          setWatchlistCount(items.length);
-        }
-      } catch (error) {
-        console.error('Error reading watchlist count:', error);
-      }
-    }
-  }, []);
- 
-  // Initialize dark mode from localStorage or system preference
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedMode = localStorage.getItem('darkMode');
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      
-      if (savedMode !== null) {
-        setDarkMode(JSON.parse(savedMode));
-      } else if (prefersDark) {
-        setDarkMode(true);
-      }
-    }
-  }, []);
 
   // Toggle dark mode and save preference
   const toggleDarkMode = () => {
@@ -159,7 +159,7 @@ const NavBar = () => {
               />
             </button>
             
-            {session ? (
+            {session.user ? (
               <div className="hidden md:flex items-center space-x-3">
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Welcome, {session.user?.firstName || session.user?.name?.split(' ')[0] || 'User'} {session.user?.lastName || session.user?.name?.split(' ').slice(1).join(' ') || ''}
