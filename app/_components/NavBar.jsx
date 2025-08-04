@@ -11,6 +11,34 @@ const NavBar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [watchlistCount, setWatchlistCount] = useState(0);
   const { data: session, status } = useSession();
+  
+  // Show loading state while session is loading
+  if (status === 'loading') {
+    return (
+      <nav className="top-0 w-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-50 border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                <Link href="/">
+                  <FontAwesomeIcon icon={faFilm} className="w-4 h-4 text-white" />
+                </Link>
+              </div>
+              <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                MoodFlix
+              </span>
+            </div>
+            
+            {/* Loading indicator */}
+            <div className="flex items-center space-x-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-purple-500"></div>
+            </div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
 
   // Get watchlist count
   useEffect(() => {
@@ -134,7 +162,7 @@ const NavBar = () => {
             {session ? (
               <div className="hidden md:flex items-center space-x-3">
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Welcome, {session.user.firstName} {session.user.lastName}
+                  Welcome, {session.user?.firstName || session.user?.name?.split(' ')[0] || 'User'} {session.user?.lastName || session.user?.name?.split(' ').slice(1).join(' ') || ''}
                 </span>
                 <button
                   onClick={handleSignOut}
@@ -211,7 +239,7 @@ const NavBar = () => {
                   </Link>
                   <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
                     <div className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
-                      Welcome, {session.user.firstName} {session.user.lastName}
+                      Welcome, {session.user?.firstName || session.user?.name?.split(' ')[0] || 'User'} {session.user?.lastName || session.user?.name?.split(' ').slice(1).join(' ') || ''}
                     </div>
                     <button
                       onClick={() => {
