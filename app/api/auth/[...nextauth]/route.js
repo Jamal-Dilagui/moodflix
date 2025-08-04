@@ -46,16 +46,50 @@ export const authOptions = {
    GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      // authorization: {
-      //   params: {
-      //     prompt: "consent",
-      //     access_type: "offline",
-      //     response_type: "code"
-      //   }
-      // }
+      async profile(profile) {
+        return {
+          id: profile.sub,
+          name: profile.name,
+          email: profile.email,
+          firstName: profile.given_name,
+          lastName: profile.family_name,
+        };
+      }
     })
   ],
   callbacks: {
+    async signIn({ user, account, profile }) {
+      if (account?.provider === 'google') {
+        try {
+          await connectMongoDb();
+          
+          // Check if user exists
+          let dbUser = await User.findOne({ email: user.email });
+          
+          if (!dbUser) {
+            // Create new user for Google sign-in
+            dbUser = new User({
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              password: 'google-auth-' + Math.random().toString(36).substring(2), // Dummy password
+              googleId: user.id,
+              isEmailVerified: true
+            });
+            await dbUser.save();
+            console.log('✅ Created new user for Google sign-in:', dbUser._id);
+          }
+          
+          // Update user ID for session
+          user.id = dbUser._id.toString();
+          return true;
+        } catch (error) {
+          console.error('Error in Google sign-in:', error);
+          return false;
+        }
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       // Persist user data in token
       if (user) {

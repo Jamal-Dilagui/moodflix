@@ -225,7 +225,7 @@ watchlistSchema.statics.getUserWatchlist = function(userId, status = null, limit
   if (status) query.status = status;
   
   return this.find(query)
-    .populate('movieId', 'title posterPath overview runtime releaseDate genres averageRating')
+    .populate('movieId', 'title posterPath overview runtime releaseDate genres averageRating tmdbId')
     .sort({ createdAt: -1 })
     .limit(limit)
     .skip(skip);
@@ -234,7 +234,7 @@ watchlistSchema.statics.getUserWatchlist = function(userId, status = null, limit
 // Static method to get user's completed movies
 watchlistSchema.statics.getUserCompleted = function(userId, limit = 20, skip = 0) {
   return this.find({ userId, status: 'completed' })
-    .populate('movieId', 'title posterPath overview runtime releaseDate genres averageRating')
+    .populate('movieId', 'title posterPath overview runtime releaseDate genres averageRating tmdbId')
     .sort({ completedAt: -1 })
     .limit(limit)
     .skip(skip);
@@ -243,7 +243,7 @@ watchlistSchema.statics.getUserCompleted = function(userId, limit = 20, skip = 0
 // Static method to get user's watching movies
 watchlistSchema.statics.getUserWatching = function(userId) {
   return this.find({ userId, status: 'watching' })
-    .populate('movieId', 'title posterPath overview runtime releaseDate genres averageRating')
+    .populate('movieId', 'title posterPath overview runtime releaseDate genres averageRating tmdbId')
     .sort({ updatedAt: -1 });
 };
 

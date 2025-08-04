@@ -4,12 +4,28 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useSession, signOut } from "next-auth/react";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFilm, faSun, faMoon, faBars, faTimes, faHome, faHeart, faUser } from '@fortawesome/free-solid-svg-icons';
+import { faFilm, faSun, faMoon, faBars, faTimes, faHome, faHeart, faUser, faBookmark } from '@fortawesome/free-solid-svg-icons';
 
 const NavBar = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [watchlistCount, setWatchlistCount] = useState(0);
   const { data: session, status } = useSession();
+
+  // Get watchlist count
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const watchlist = localStorage.getItem('moodflix_watchlist');
+        if (watchlist) {
+          const items = JSON.parse(watchlist);
+          setWatchlistCount(items.length);
+        }
+      } catch (error) {
+        console.error('Error reading watchlist count:', error);
+      }
+    }
+  }, []);
  
   // Initialize dark mode from localStorage or system preference
   useEffect(() => {
@@ -79,13 +95,18 @@ const NavBar = () => {
             </Link>
             {session && (
               <>
-                <Link 
-                  href="/watchlist" 
-                  className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                >
-                  <FontAwesomeIcon icon={faHeart} className="w-4 h-4" />
-                  <span>Watchlist</span>
-                </Link>
+                            <Link 
+              href="/watchlist" 
+              className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors relative"
+            >
+              <FontAwesomeIcon icon={faBookmark} className="w-4 h-4" />
+              <span>Watchlist</span>
+              {watchlistCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {watchlistCount > 99 ? '99+' : watchlistCount}
+                </span>
+              )}
+            </Link>
                 <Link 
                   href="/profile" 
                   className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
@@ -169,11 +190,16 @@ const NavBar = () => {
                 <>
                   <Link 
                     href="/watchlist" 
-                    className="flex items-center space-x-3 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                    className="flex items-center space-x-3 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors relative"
                     onClick={closeMenu}
                   >
-                    <FontAwesomeIcon icon={faHeart} className="w-4 h-4" />
+                    <FontAwesomeIcon icon={faBookmark} className="w-4 h-4" />
                     <span>Watchlist</span>
+                    {watchlistCount > 0 && (
+                      <span className="bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center ml-1">
+                        {watchlistCount > 99 ? '99+' : watchlistCount}
+                      </span>
+                    )}
                   </Link>
                   <Link 
                     href="/profile" 

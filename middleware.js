@@ -7,7 +7,8 @@ export async function middleware(req) {
 
   console.log('TOKEN:', token, 'PATH:', pathname);
 
-  const protectedRoutes = ['/profile', '/watchlist', '/moviesResults', '/recommend'];
+  // Only protect routes that require authentication
+  const protectedRoutes = ['/profile', '/recommend'];
 
   // If not logged in and trying to access protected page
   if (!token && protectedRoutes.includes(pathname)) {

@@ -7,15 +7,21 @@ import {
   faArrowLeft, 
   faBookmark, 
   faShare,
-  faSpinner
+  faSpinner,
+  faTrash
 } from '@fortawesome/free-solid-svg-icons';
+import { useWatchlist } from '@/app/hooks/useWatchlist';
+
 const ResultsPage = () => {
-  const [bookmarkedMovies, setBookmarkedMovies] = useState(new Set());
   const [imageErrors, setImageErrors] = useState(new Set());
   const [userPreferences, setUserPreferences] = useState(null);
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [watchlistStatus, setWatchlistStatus] = useState({}); // Track watchlist status for each movie
+  
+  // Watchlist functionality
+  const { addMovie, removeMovie, checkIsInWatchlist, loadWatchlist } = useWatchlist();
 
   // Get user preferences from URL params or localStorage
   useEffect(() => {
@@ -29,6 +35,23 @@ const ResultsPage = () => {
       fetchRecommendations(mood, timeAvailable, situation);
     }
   }, []);
+
+  // Check watchlist status for all movies when movies change
+  useEffect(() => {
+    const checkWatchlistStatus = async () => {
+      if (movies.length > 0) {
+        const status = {};
+        for (const movie of movies) {
+          if (movie.tmdb_id) {
+            status[movie.tmdb_id] = await checkIsInWatchlist(movie.tmdb_id);
+          }
+        }
+        setWatchlistStatus(status);
+      }
+    };
+
+    checkWatchlistStatus();
+  }, [movies, checkIsInWatchlist]);
 
   const fetchRecommendations = async (mood, timeAvailable, situation) => {
     setLoading(true);
@@ -61,6 +84,29 @@ const ResultsPage = () => {
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle adding/removing movies from watchlist
+  const handleWatchlistToggle = async (movie) => {
+    if (!movie.tmdb_id) return;
+
+    const isInWatchlist = watchlistStatus[movie.tmdb_id];
+    
+    try {
+      if (isInWatchlist) {
+        await removeMovie(movie.tmdb_id);
+      } else {
+        await addMovie(movie);
+      }
+      
+      // Update local state immediately for better UX
+      setWatchlistStatus(prev => ({
+        ...prev,
+        [movie.tmdb_id]: !isInWatchlist
+      }));
+    } catch (error) {
+      console.error('Error toggling watchlist:', error);
     }
   };
 
@@ -124,144 +170,129 @@ const ResultsPage = () => {
               <p className="text-lg text-gray-600 dark:text-gray-300">No movies found for your preferences</p>
             </div>
           ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {movies.map((movie, index) => (
-                <div 
-                  key={movie.tmdb_id || movie.title}
-                  className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  <div className="relative">
-                    <img 
-                      src={imageErrors.has(movie.tmdb_id) ? '/images/placeholder.svg' : 
-                           movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : 
-                           '/images/placeholder.svg'} 
-                      alt={movie.title} 
-                      className="w-full h-64 object-cover"
-                      onError={(e) => {
-                        setImageErrors(prev => new Set([...prev, movie.tmdb_id]));
-                        e.target.src = '/images/placeholder.svg';
-                      }}
-                    />
-                    <div className="absolute top-4 right-4">
-                      <button 
-                        className={`p-2 rounded-full transition-colors ${
-                          bookmarkedMovies.has(movie.tmdb_id)
-                            ? 'text-yellow-400 bg-gray-800/90 hover:bg-gray-700/90'
-                            : 'text-white/80 bg-gray-800/80 hover:bg-gray-700/80'
-                        }`}
-                        onClick={() => {
-                          setBookmarkedMovies(prev => {
-                            const newSet = new Set(prev);
-                            if (newSet.has(movie.tmdb_id)) {
-                              newSet.delete(movie.tmdb_id);
-                            } else {
-                              newSet.add(movie.tmdb_id);
-                            }
-                            return newSet;
-                          });
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {movies.map((movie, index) => {
+                const isInWatchlist = watchlistStatus[movie.tmdb_id] || false;
+                
+                return (
+                  <div 
+                    key={movie.tmdb_id || movie.title}
+                    className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    <div className="relative">
+                      <img 
+                        src={imageErrors.has(movie.tmdb_id) ? '/images/placeholder.svg' : 
+                             movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : 
+                             '/images/placeholder.svg'} 
+                        alt={movie.title} 
+                        className="w-full h-64 object-cover"
+                        onError={(e) => {
+                          setImageErrors(prev => new Set([...prev, movie.tmdb_id]));
+                          e.target.src = '/images/placeholder.svg';
                         }}
-                      >
-                        <FontAwesomeIcon icon={faBookmark} />
-                      </button>
-                    </div>
-                    {/* AI Confidence Badge */}
-                    {movie.search_confidence && (
-                      <div className="absolute top-4 left-4">
-                        <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full">
-                          AI: {Math.round(movie.search_confidence * 100)}%
-                        </span>
+                      />
+                      <div className="absolute top-4 right-4">
+                        <button 
+                          className={`p-2 rounded-full transition-colors ${
+                            isInWatchlist
+                              ? 'text-yellow-400 bg-gray-800/90 hover:bg-gray-700/90'
+                              : 'text-white/80 bg-gray-800/80 hover:bg-gray-700/80'
+                          }`}
+                          onClick={() => handleWatchlistToggle(movie)}
+                          title={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+                        >
+                          <FontAwesomeIcon icon={faBookmark} />
+                        </button>
                       </div>
-                    )}
-                  </div>
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{movie.title}</h3>
-                        <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                          {movie.release_date && (
-                            <span>{new Date(movie.release_date).getFullYear()}</span>
-                          )}
-                          {movie.release_date && movie.runtime && <span>•</span>}
-                          {movie.runtime && <span>{movie.runtime} min</span>}
-                          {movie.runtime && movie.vote_average && <span>•</span>}
-                          {movie.vote_average && <span>⭐ {movie.vote_average.toFixed(1)}</span>}
-                          {movie.vote_average && movie.genres && <span>•</span>}
-                          {movie.genres && movie.genres.length > 0 && (
-                            <span className="text-purple-600 dark:text-purple-400">
-                              {movie.genres[0]}
-                            </span>
-                          )}
+                      {/* AI Confidence Badge */}
+                      {movie.search_confidence && (
+                        <div className="absolute top-4 left-4">
+                          <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full">
+                            AI: {Math.round(movie.search_confidence * 100)}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{movie.title}</h3>
+                          <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                            {movie.release_date && (
+                              <span>{new Date(movie.release_date).getFullYear()}</span>
+                            )}
+                            {movie.release_date && movie.runtime && <span>•</span>}
+                            {movie.runtime && <span>{movie.runtime} min</span>}
+                            {movie.runtime && movie.vote_average && <span>•</span>}
+                            {movie.vote_average && <span>⭐ {movie.vote_average.toFixed(1)}</span>}
+                            {movie.vote_average && movie.genres && <span>•</span>}
+                            {movie.genres && movie.genres.length > 0 && (
+                              <span className="text-purple-600 dark:text-purple-400">
+                                {movie.genres[0]}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <p className="text-gray-700 dark:text-gray-300 mb-4">
-                      {movie.overview || movie.description || "No description available"}
-                    </p>
-                    
-                    {/* AI Recommendation Reason */}
-                    {movie.ai_recommendation && (
-                      <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 mb-4">
-                        <p className="text-sm text-purple-800 dark:text-purple-200">
-                          <strong>🤖 AI Recommendation:</strong> {movie.ai_recommendation.reason}
-                        </p>
-                        {movie.ai_recommendation.mood_match && (
-                          <p className="text-xs text-purple-600 dark:text-purple-300 mt-1">
-                            Mood Match: {movie.ai_recommendation.mood_match}
+                      <p className="text-gray-700 dark:text-gray-300 mb-4">
+                        {movie.overview || movie.description || "No description available"}
+                      </p>
+                      
+                      {/* AI Recommendation Reason */}
+                      {movie.ai_recommendation && (
+                        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 mb-4">
+                          <p className="text-sm text-purple-800 dark:text-purple-200">
+                            <strong>🤖 AI Recommendation:</strong> {movie.ai_recommendation.reason}
                           </p>
-                        )}
-                        {movie.ai_recommendation.time_suitable && (
-                          <p className="text-xs text-purple-600 dark:text-purple-300">
-                            Time Suitable: {movie.ai_recommendation.time_suitable}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    
-                    <div className="flex space-x-3">
-                      <button 
-                        className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-300 ${
-                          bookmarkedMovies.has(movie.tmdb_id)
-                            ? 'bg-green-600 hover:bg-green-700 text-white'
-                            : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
-                        }`}
-                        onClick={() => {
-                          setBookmarkedMovies(prev => {
-                            const newSet = new Set(prev);
-                            if (newSet.has(movie.tmdb_id)) {
-                              newSet.delete(movie.tmdb_id);
+                          {movie.ai_recommendation.mood_match && (
+                            <p className="text-xs text-purple-600 dark:text-purple-300 mt-1">
+                              Mood Match: {movie.ai_recommendation.mood_match}
+                            </p>
+                          )}
+                          {movie.ai_recommendation.time_suitable && (
+                            <p className="text-xs text-purple-600 dark:text-purple-300">
+                              Time Suitable: {movie.ai_recommendation.time_suitable}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className="flex space-x-3">
+                        <button 
+                          className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-300 ${
+                            isInWatchlist
+                              ? 'bg-green-600 hover:bg-green-700 text-white'
+                              : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
+                          }`}
+                          onClick={() => handleWatchlistToggle(movie)}
+                        >
+                          <FontAwesomeIcon icon={faBookmark} className="mr-2" />
+                          {isInWatchlist ? 'Saved!' : 'Save to Watchlist'}
+                        </button>
+                        <button 
+                          className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                          onClick={() => {
+                            if (navigator.share) {
+                              navigator.share({
+                                title: movie.title,
+                                text: `Check out ${movie.title} - ${movie.overview || movie.description}`,
+                                url: window.location.href
+                              });
                             } else {
-                              newSet.add(movie.tmdb_id);
+                              // Fallback: copy to clipboard
+                              navigator.clipboard.writeText(`${movie.title} - ${movie.overview || movie.description}`);
+                              alert('Movie info copied to clipboard!');
                             }
-                            return newSet;
-                          });
-                        }}
-                      >
-                        <FontAwesomeIcon icon={faBookmark} className="mr-2" />
-                        {bookmarkedMovies.has(movie.tmdb_id) ? 'Saved!' : 'Save to Watchlist'}
-                      </button>
-                      <button 
-                        className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                        onClick={() => {
-                          if (navigator.share) {
-                            navigator.share({
-                              title: movie.title,
-                              text: `Check out ${movie.title} - ${movie.overview || movie.description}`,
-                              url: window.location.href
-                            });
-                          } else {
-                            // Fallback: copy to clipboard
-                             navigator.clipboard.writeText(`${movie.title} - ${movie.overview || movie.description}`);
-                            alert('Movie info copied to clipboard!');
-                          }
-                        }}
-                      >
-                        <FontAwesomeIcon icon={faShare} className="mr-2" />
-                        Share
-                      </button>
+                          }}
+                        >
+                          <FontAwesomeIcon icon={faShare} className="mr-2" />
+                          Share
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

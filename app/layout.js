@@ -1,5 +1,6 @@
 import Footer from "./_components/Footer";
 import NavBar from "./_components/NavBar";
+import WatchlistMigration from "./_components/WatchlistMigration";
 import "./globals.css";
 import SessionProviderWrapper from "./_components/SessionProvider";
 
@@ -19,6 +20,7 @@ export default function RootLayout({ children }) {
             <NavBar/>
               {children}
             <Footer/>
+            <WatchlistMigration />
           </SessionProviderWrapper>
       </body>
     </html>
