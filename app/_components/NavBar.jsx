@@ -121,7 +121,7 @@ const NavBar = () => {
               <FontAwesomeIcon icon={faHeart} className="w-4 h-4" />
               <span>Recommendations</span>
             </Link>
-            {session && (
+            {session.user && (
               <>
                             <Link 
               href="/watchlist" 
