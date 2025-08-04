@@ -6,6 +6,7 @@ import Watchlist from '@/app/models/Watchlist';
 import User from '@/app/models/User';
 import MoodEntry from '@/app/models/MoodEntry';
 import Activity from '@/app/models/Activity';
+import Movie from '@/app/models/Movie';
 
 // GET /api/profile/stats - Get user profile statistics
 export async function GET() {
