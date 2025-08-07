@@ -46,15 +46,15 @@ export const authOptions = {
    GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      async profile(profile) {
-        return {
-          id: profile.sub,
-          name: profile.name,
-          email: profile.email,
-          firstName: profile.given_name,
-          lastName: profile.family_name,
-        };
-      }
+      // async profile(profile) {
+      //   return {
+      //     id: profile.sub,
+      //     name: profile.name,
+      //     email: profile.email,
+      //     firstName: profile.given_name,
+      //     lastName: profile.family_name,
+      //   };
+      // }
     })
   ],
   callbacks: {
